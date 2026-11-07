@@ -88,7 +88,11 @@ On the High Sierra rig (Xcode 10.1):
 
 1. Create an AppKit (Objective-C, ARC) app target named
    `LiveTransitDetroit`, deployment target 10.13, and add everything in
-   `Sources/` (including `Info.plist`) to it — or compile manually:
+   `Sources/` (including `Info.plist`) to it. The deployment-target half
+   of the floor's matched pair (REQ-H-1.2) is declared in
+   `LiveTransitDetroit.xcconfig` at the repo root — assign it as the
+   target's base configuration so the setting lives in a file, not only
+   in this paragraph — or compile manually:
 
    ```
    clang -fobjc-arc -framework AppKit -mmacosx-version-min=10.13 \

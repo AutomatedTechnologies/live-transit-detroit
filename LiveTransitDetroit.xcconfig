@@ -1,0 +1,15 @@
+//  LiveTransitDetroit.xcconfig
+//  Live Transit Detroit — native macOS app
+//
+//  DAADV3 T3 item 14 (DECLARE, LT-1): the deployment-target half of the
+//  matched floor pair (REQ-H-1.2). The other half already exists as the
+//  LSMinimumSystemVersion 10.13 literal in Sources/Info.plist. Until this
+//  file landed there was no project file in which a target could be
+//  declared (scaffold stage — T2-h census).
+//
+//  Floor: macOS 10.13 (High Sierra), DAADV3 baseline.
+//  Memory model: ARC (this tree's model of record, per README).
+
+MACOSX_DEPLOYMENT_TARGET = 10.13
+CLANG_ENABLE_OBJC_ARC = YES
+GCC_C_LANGUAGE_STANDARD = gnu11
