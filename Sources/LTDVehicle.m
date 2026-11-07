@@ -70,7 +70,16 @@
         v.lat = [(NSNumber *)lat doubleValue];
         v.lon = [(NSNumber *)lon doubleValue];
         id bearing = [d objectForKey:@"bearing"];
-        v.bearing = [bearing isKindOfClass:[NSNumber class]] ? [(NSNumber *)bearing doubleValue] : 0.0;
+        if ([bearing isKindOfClass:[NSNumber class]]) {
+            v.bearing = [(NSNumber *)bearing doubleValue];
+            v.hasBearing = YES;
+        } else {
+            // Null bearing (the display feed sends bearing: null): keep
+            // 0.0 as a placeholder but flag it absent — drawing a north
+            // tick for it would fabricate a heading the feed never sent.
+            v.bearing = 0.0;
+            v.hasBearing = NO;
+        }
         id speed = [d objectForKey:@"speed_mph"];
         if ([speed isKindOfClass:[NSNumber class]]) {
             v.speedMPH = [(NSNumber *)speed doubleValue];
@@ -92,6 +101,7 @@
     if (other == nil) return NO;
     if (fabs(self.lat - other.lat) > 1e-9) return NO;
     if (fabs(self.lon - other.lon) > 1e-9) return NO;
+    if (self.hasBearing != other.hasBearing) return NO;
     if (fabs(self.bearing - other.bearing) > 1e-9) return NO;
     if ((self.routeID == nil) != (other.routeID == nil)) return NO;
     if (self.routeID && ![self.routeID isEqualToString:other.routeID]) return NO;

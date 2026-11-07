@@ -7,8 +7,9 @@
 //    offscreen NSImage cache. It is invalidated ONLY when the view bounds
 //    change or the routes array is replaced.
 //  - drawRect: blits the cached static image, then draws ONLY the vehicle
-//    markers (circle + bearing tick + route label). ~60 markers is a few
-//    hundred path operations — no per-frame cost beyond the blit.
+//    markers (circle + bearing tick + route label). ~144 markers (the
+//    full merged network) is a few hundred path operations — no
+//    per-frame cost beyond the blit.
 //  - No timers, no animation loop, no display-link inside this view. The
 //    owner (app delegate) calls setNeedsDisplay only when the keyed diff
 //    says a vehicle actually moved.
@@ -50,7 +51,14 @@ typedef struct {
 @property (nonatomic, copy, nullable) NSArray<LTDVehicle *> *vehicles;
 @property (nonatomic, copy, nullable) NSArray<LTDRoutePolyline *> *routes;
 
-// Map centre (Detroit: Rosa Parks TC area). Fixed for T1.
+// Map centre: the centre of the FULL regional network bounds
+// (lat 42.11–42.73, lon −83.58–−82.72 — the whole service region, per
+// the 2026-11-07 scope ruling: the full network is in the product,
+// default-on, no layer/toggle separates any part of it). The default
+// projection fits those bounds into the view, so every route and every
+// vehicle is on the map from launch; the Detroit core (42.3314,
+// −83.0458, Rosa Parks TC area) is drawn on the static layer as the
+// anchor marker inside that regional framing.
 @property (nonatomic, assign, readonly) double centerLat;
 @property (nonatomic, assign, readonly) double centerLon;
 

@@ -31,13 +31,24 @@
 @property (nonatomic, assign) BOOL staticLayerDirty;
 @end
 
+// Full regional network bounds (scope ruling 2026-11-07): the default
+// projection fits ALL of this, so the whole network — not a city-only
+// subset — is the product the map presents.
+static const double kLTDRegionMinLat = 42.11;
+static const double kLTDRegionMaxLat = 42.73;
+static const double kLTDRegionMinLon = -83.58;
+static const double kLTDRegionMaxLon = -82.72;
+// Detroit core anchor (Rosa Parks TC area), drawn on the static layer.
+static const double kLTDCoreLat = 42.3314;
+static const double kLTDCoreLon = -83.0458;
+
 @implementation LTDMapView
 
 - (instancetype)initWithFrame:(NSRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
-        _centerLat = 42.3314;
-        _centerLon = -83.0458;
+        _centerLat = (kLTDRegionMinLat + kLTDRegionMaxLat) / 2.0; // 42.42
+        _centerLon = (kLTDRegionMinLon + kLTDRegionMaxLon) / 2.0; // -83.15
         _staticLayerDirty = YES;
         _staticLayerSize = NSZeroSize;
     }
@@ -61,10 +72,18 @@
 
 #pragma mark - Projection
 
-// Degrees-per-pixel: fit roughly 0.30 deg latitude across the view height.
+// Degrees-per-pixel: fit the FULL regional bounds into the view —
+// whichever span (latitude, or longitude corrected by cos(lat)) needs
+// more room wins — with 5% padding so edge vehicles are not clipped.
 - (double)degreesPerPixel {
+    double w = NSWidth(self.bounds);
     double h = NSHeight(self.bounds);
-    return (h > 0) ? (0.30 / h) : 0.001;
+    if (w < 1 || h < 1) return 0.001;
+    double latSpan = kLTDRegionMaxLat - kLTDRegionMinLat;              // 0.62
+    double lonSpan = (kLTDRegionMaxLon - kLTDRegionMinLon) *
+                     cos(_centerLat * M_PI / 180.0);                   // ~0.64
+    double dpp = fmax(latSpan / h, lonSpan / w);
+    return dpp * 1.05;
 }
 
 - (NSPoint)pointForLat:(double)lat lon:(double)lon {
@@ -111,6 +130,22 @@
         }
         [path stroke];
     }
+
+    // Detroit core anchor: a small ring + label at the core point, so
+    // the regional framing keeps the city centre legible as its anchor.
+    NSPoint core = [self pointForLat:kLTDCoreLat lon:kLTDCoreLon];
+    [[NSColor colorWithCalibratedWhite:0.85 alpha:0.9] setStroke];
+    NSBezierPath *ring = [NSBezierPath bezierPathWithOvalInRect:
+        NSMakeRect(core.x - 4.0, core.y - 4.0, 8.0, 8.0)];
+    ring.lineWidth = 1.5;
+    [ring stroke];
+    NSDictionary *coreAttrs = @{
+        NSFontAttributeName: [NSFont systemFontOfSize:10.0],
+        NSForegroundColorAttributeName:
+            [NSColor colorWithCalibratedWhite:0.85 alpha:0.9],
+    };
+    [@"DETROIT" drawAtPoint:NSMakePoint(core.x + 7.0, core.y - 5.0)
+             withAttributes:coreAttrs];
 
     // Border.
     [[NSColor colorWithCalibratedWhite:0.35 alpha:1.0] setStroke];
@@ -160,15 +195,19 @@
         [[NSBezierPath bezierPathWithOvalInRect:circle] stroke];
 
         // Bearing tick: 0 deg = north = up (smaller y in flipped coords).
-        double rad = v.bearing * M_PI / 180.0;
-        NSPoint tip = NSMakePoint(c.x + sin(rad) * (radius + 5.0),
-                                  c.y - cos(rad) * (radius + 5.0));
-        NSBezierPath *tick = [NSBezierPath bezierPath];
-        tick.lineWidth = 1.5;
-        [tick moveToPoint:c];
-        [tick lineToPoint:tip];
-        [[NSColor whiteColor] setStroke];
-        [tick stroke];
+        // Drawn ONLY when the feed actually sent a bearing — a null
+        // bearing must not become a fabricated north heading.
+        if (v.hasBearing) {
+            double rad = v.bearing * M_PI / 180.0;
+            NSPoint tip = NSMakePoint(c.x + sin(rad) * (radius + 5.0),
+                                      c.y - cos(rad) * (radius + 5.0));
+            NSBezierPath *tick = [NSBezierPath bezierPath];
+            tick.lineWidth = 1.5;
+            [tick moveToPoint:c];
+            [tick lineToPoint:tip];
+            [[NSColor whiteColor] setStroke];
+            [tick stroke];
+        }
 
         if (v.routeID.length > 0) {
             [v.routeID drawAtPoint:NSMakePoint(c.x + radius + 2.0, c.y - 5.0)

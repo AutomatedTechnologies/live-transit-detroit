@@ -23,13 +23,23 @@ typedef void (^LTDFeedCompletion)(NSData * _Nullable data, BOOL notModified, NSE
 + (instancetype)sharedClient;
 
 @property (nonatomic, copy, readonly) NSURL *vehiclesURL;
+@property (nonatomic, copy, readonly) NSURL *smartDisplayURL;
 @property (nonatomic, copy, readonly) NSURL *alertsURL;
 
 - (void)fetchVehiclesWithCompletion:(LTDFeedCompletion)completion;
+// Second vehicle feed file (live-data/smart-display.json). Same
+// conditional-GET + disk-cache treatment as vehicles.json; its payload
+// is MERGED into the one vehicle list by the caller (scope ruling
+// 2026-11-07: one network, one presentation — this client only moves
+// bytes; it draws no distinction in how feeds are presented).
+- (void)fetchSmartDisplayWithCompletion:(LTDFeedCompletion)completion;
 - (void)fetchAlertsWithCompletion:(LTDFeedCompletion)completion;
 
-// Last good vehicles payload from the on-disk cache (nil if none yet).
+// Last good payloads from the on-disk cache (nil if none yet). The two
+// vehicle caches together restore the merged cold-launch state.
 + (nullable NSData *)cachedVehiclesData;
++ (nullable NSData *)cachedSmartDisplayData;
++ (nullable NSData *)cachedAlertsData;
 
 @end
 

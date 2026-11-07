@@ -22,6 +22,7 @@ static NSString * const kLTDBundleID = @"com.detroitautomationacademy.livetransi
     self = [super init];
     if (self) {
         _vehiclesURL = [NSURL URLWithString:@"https://detroitautomationacademy.com/live-data/vehicles.json"];
+        _smartDisplayURL = [NSURL URLWithString:@"https://detroitautomationacademy.com/live-data/smart-display.json"];
         _alertsURL   = [NSURL URLWithString:@"https://detroitautomationacademy.com/live-data/alerts.json"];
         NSURLSessionConfiguration *config =
             [NSURLSessionConfiguration ephemeralSessionConfiguration];
@@ -76,6 +77,14 @@ static NSString * const kLTDBundleID = @"com.detroitautomationacademy.livetransi
 
 + (NSData *)cachedVehiclesData {
     return [NSData dataWithContentsOfURL:[self cacheFileURLForFeedName:@"vehicles"]];
+}
+
++ (NSData *)cachedSmartDisplayData {
+    return [NSData dataWithContentsOfURL:[self cacheFileURLForFeedName:@"smart-display"]];
+}
+
++ (NSData *)cachedAlertsData {
+    return [NSData dataWithContentsOfURL:[self cacheFileURLForFeedName:@"alerts"]];
 }
 
 + (void)writeCacheData:(NSData *)data feedName:(NSString *)name {
@@ -136,6 +145,10 @@ static NSString * const kLTDBundleID = @"com.detroitautomationacademy.livetransi
 
 - (void)fetchVehiclesWithCompletion:(LTDFeedCompletion)completion {
     [self fetchURL:self.vehiclesURL feedName:@"vehicles" completion:completion];
+}
+
+- (void)fetchSmartDisplayWithCompletion:(LTDFeedCompletion)completion {
+    [self fetchURL:self.smartDisplayURL feedName:@"smart-display" completion:completion];
 }
 
 - (void)fetchAlertsWithCompletion:(LTDFeedCompletion)completion {

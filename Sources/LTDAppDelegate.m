@@ -1,10 +1,19 @@
 // LTDAppDelegate.m — Live Transit Detroit (native macOS, codename:distro T1)
 // Window 1100x700: status line on top, map left (~70%), vehicle table right.
-// Refresh: 60 s timer. The feed itself republishes on a ~5-min cron, and
+// Refresh: 60 s timer. The feeds republish on a ~5-min cron, and
 // conditional GET (LTDFeedClient) makes an unchanged poll a 304 with no
 // parse and no redraw — do NOT poll faster than 60 s.
 // Redraw rule: new data is diffed by vehicle diffKey + isSamePositionAs:;
 // the map is told to redraw ONLY when the set or a position changed.
+//
+// ONE NETWORK (scope ruling 2026-11-07): this delegate fetches BOTH
+// vehicle feed files (vehicles.json and smart-display.json) plus the
+// alerts file, and MERGES the two vehicle payloads into ONE array —
+// one map, one table, one total count, one "Live Transit Detroit feed"
+// status line. There is no layer, no toggle, no section, and no
+// per-source wording anywhere in the presentation. The two per-file
+// arrays below are data plumbing so each file's refresh can land
+// independently; they are never shown separately.
 #import "LTDAppDelegate.h"
 #import "LTDMapView.h"
 #import "LTDVehicle.h"
@@ -16,8 +25,16 @@
 @property (nonatomic, strong) NSTableView *tableView;
 @property (nonatomic, strong) NSTextField *statusLabel;
 @property (nonatomic, strong) NSTimer *refreshTimer;
+// The MERGED vehicle list — the only list any view ever sees.
 @property (nonatomic, copy) NSArray<LTDVehicle *> *vehicles;
+// Per-file plumbing (never presented separately): the latest parsed
+// payload of each vehicle feed file, merged by -mergedVehicles.
+@property (nonatomic, copy) NSArray<LTDVehicle *> *vehiclesFileVehicles;
+@property (nonatomic, copy) NSArray<LTDVehicle *> *displayFileVehicles;
+@property (nonatomic, copy, nullable) NSString *vehiclesFileStamp;
+@property (nonatomic, copy, nullable) NSString *displayFileStamp;
 @property (nonatomic, copy, nullable) NSString *feedGeneratedAt;
+@property (nonatomic, assign) NSUInteger alertCount;
 @property (nonatomic, assign) BOOL showingCachedData;
 @end
 
@@ -26,26 +43,50 @@
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
     (void)notification;
     self.vehicles = [NSArray array];
+    self.vehiclesFileVehicles = [NSArray array];
+    self.displayFileVehicles = [NSArray array];
     [self buildWindow];
 
-    // 1) Instant cold launch: paint last good payload from disk cache.
-    NSData *cached = [LTDFeedClient cachedVehiclesData];
-    if (cached.length > 0) {
-        NSError *error = nil;
-        NSArray<LTDVehicle *> *cachedVehicles =
-            [LTDVehicle vehiclesFromFeedData:cached error:&error];
-        if (cachedVehicles != nil) {
-            self.feedGeneratedAt = [LTDVehicle generatedAtFromFeedData:cached];
-            self.showingCachedData = YES;
-            [self installVehicles:cachedVehicles forceRedraw:YES];
+    // 1) Instant cold launch: paint the last good MERGED set from the
+    // per-file disk caches (both vehicle files together restore the
+    // one network list — restoring only one would show a partial map).
+    BOOL restoredAny = NO;
+    NSData *cachedVehicles = [LTDFeedClient cachedVehiclesData];
+    if (cachedVehicles.length > 0) {
+        NSArray<LTDVehicle *> *parsed =
+            [LTDVehicle vehiclesFromFeedData:cachedVehicles error:nil];
+        if (parsed != nil) {
+            self.vehiclesFileVehicles = parsed;
+            self.vehiclesFileStamp = [LTDVehicle generatedAtFromFeedData:cachedVehicles];
+            restoredAny = YES;
         }
+    }
+    NSData *cachedDisplay = [LTDFeedClient cachedSmartDisplayData];
+    if (cachedDisplay.length > 0) {
+        NSArray<LTDVehicle *> *parsed =
+            [LTDVehicle vehiclesFromFeedData:cachedDisplay error:nil];
+        if (parsed != nil) {
+            self.displayFileVehicles = parsed;
+            self.displayFileStamp = [LTDVehicle generatedAtFromFeedData:cachedDisplay];
+            restoredAny = YES;
+        }
+    }
+    NSData *cachedAlerts = [LTDFeedClient cachedAlertsData];
+    if (cachedAlerts.length > 0) {
+        self.alertCount = [self alertCountFromFeedData:cachedAlerts];
+        restoredAny = restoredAny || self.alertCount > 0;
+    }
+    if (restoredAny) {
+        self.showingCachedData = YES;
+        [self refreshFeedStamp];
+        [self installVehicles:[self mergedVehicles] forceRedraw:YES];
     }
 
     // 2) Then fetch live; 60 s timer thereafter.
-    [self refreshVehicles:nil];
+    [self refreshFeeds:nil];
     self.refreshTimer = [NSTimer scheduledTimerWithTimeInterval:60.0
                                                            target:self
-                                                         selector:@selector(refreshVehicles:)
+                                                         selector:@selector(refreshFeeds:)
                                                          userInfo:nil
                                                           repeats:YES];
     [NSApp activateIgnoringOtherApps:YES];
@@ -127,40 +168,122 @@
     [self.tableView addTableColumn:column];
 }
 
-#pragma mark - Fetch + keyed diff
+#pragma mark - Fetch + merge + keyed diff
 
-- (void)refreshVehicles:(NSTimer *)timer {
+// Every refresh fetches ALL THREE feed files: both vehicle files and
+// the alerts file. Each lands independently; a 304 or an error on one
+// file leaves that file's last good payload in place and never blocks
+// the others.
+- (void)refreshFeeds:(NSTimer *)timer {
     (void)timer;
     [[LTDFeedClient sharedClient] fetchVehiclesWithCompletion:
         ^(NSData *data, BOOL notModified, NSError *error) {
-        if (notModified) {
-            [self updateStatusLine]; // 304: no parse, no redraw
-            return;
-        }
-        if (error != nil || data == nil) {
-            [self updateStatusLine]; // keep showing last good data
-            return;
-        }
-        NSError *parseError = nil;
-        NSArray<LTDVehicle *> *fresh =
-            [LTDVehicle vehiclesFromFeedData:data error:&parseError];
-        if (fresh == nil) {
-            [self updateStatusLine];
-            return;
-        }
-        self.feedGeneratedAt = [LTDVehicle generatedAtFromFeedData:data];
-        self.showingCachedData = NO;
-
-        if ([self vehicleSetChangedFrom:self.vehicles to:fresh]) {
-            [self installVehicles:fresh forceRedraw:YES];
-        } else {
-            // Same set, same positions: update silently (e.g. speeds),
-            // no map redraw, but keep the table truthful.
-            self.vehicles = fresh;
-            [self.tableView reloadData];
-            [self updateStatusLine];
-        }
+        [self handleVehicleFeedData:data notModified:notModified
+                              error:error displayFile:NO];
     }];
+    [[LTDFeedClient sharedClient] fetchSmartDisplayWithCompletion:
+        ^(NSData *data, BOOL notModified, NSError *error) {
+        [self handleVehicleFeedData:data notModified:notModified
+                              error:error displayFile:YES];
+    }];
+    [[LTDFeedClient sharedClient] fetchAlertsWithCompletion:
+        ^(NSData *data, BOOL notModified, NSError *error) {
+        if (notModified || error != nil || data == nil) {
+            [self updateStatusLine]; // keep last good alerts state
+            return;
+        }
+        self.alertCount = [self alertCountFromFeedData:data];
+        self.showingCachedData = NO;
+        [self updateStatusLine];
+    }];
+}
+
+// One vehicle feed file landed: parse it, swap it into its plumbing
+// slot, rebuild the ONE merged list, and redraw only on a real change.
+- (void)handleVehicleFeedData:(NSData *)data
+                  notModified:(BOOL)notModified
+                        error:(NSError *)error
+                  displayFile:(BOOL)isDisplayFile {
+    if (notModified) {
+        [self updateStatusLine]; // 304: no parse, no redraw
+        return;
+    }
+    if (error != nil || data == nil) {
+        [self updateStatusLine]; // keep showing last good data
+        return;
+    }
+    NSError *parseError = nil;
+    NSArray<LTDVehicle *> *fresh =
+        [LTDVehicle vehiclesFromFeedData:data error:&parseError];
+    if (fresh == nil) {
+        [self updateStatusLine];
+        return;
+    }
+    if (isDisplayFile) {
+        self.displayFileVehicles = fresh;
+        self.displayFileStamp = [LTDVehicle generatedAtFromFeedData:data];
+    } else {
+        self.vehiclesFileVehicles = fresh;
+        self.vehiclesFileStamp = [LTDVehicle generatedAtFromFeedData:data];
+    }
+    self.showingCachedData = NO;
+    [self refreshFeedStamp];
+
+    NSArray<LTDVehicle *> *merged = [self mergedVehicles];
+    if ([self vehicleSetChangedFrom:self.vehicles to:merged]) {
+        [self installVehicles:merged forceRedraw:YES];
+    } else {
+        // Same merged set, same positions: update silently (e.g.
+        // speeds), no map redraw, but keep the table truthful.
+        self.vehicles = merged;
+        [self.tableView reloadData];
+        [self updateStatusLine];
+    }
+}
+
+// THE merge: the two feed files' vehicles become ONE list — sample
+// payloads total 58 + 86 = 144 vehicles in a single map, a single
+// table, a single count. Deduped by diffKey so a vehicle reported by
+// both files (not expected, but cheap to guard) appears exactly once.
+- (NSArray<LTDVehicle *> *)mergedVehicles {
+    NSMutableArray<LTDVehicle *> *merged =
+        [NSMutableArray arrayWithCapacity:
+            self.vehiclesFileVehicles.count + self.displayFileVehicles.count];
+    NSMutableSet<NSString *> *seen = [NSMutableSet setWithCapacity:merged.count];
+    for (LTDVehicle *v in self.vehiclesFileVehicles) {
+        if (![seen containsObject:v.diffKey]) {
+            [seen addObject:v.diffKey];
+            [merged addObject:v];
+        }
+    }
+    for (LTDVehicle *v in self.displayFileVehicles) {
+        if (![seen containsObject:v.diffKey]) {
+            [seen addObject:v.diffKey];
+            [merged addObject:v];
+        }
+    }
+    return [merged copy];
+}
+
+// The merged list carries ONE stamp: the newer of the two files'
+// generated_at values (same ISO-8601 format, so string order works).
+- (void)refreshFeedStamp {
+    NSString *a = self.vehiclesFileStamp;
+    NSString *b = self.displayFileStamp;
+    if (a == nil)      self.feedGeneratedAt = b;
+    else if (b == nil) self.feedGeneratedAt = a;
+    else               self.feedGeneratedAt = [a compare:b] == NSOrderedDescending ? a : b;
+}
+
+// Alerts envelope: {generated_at, count, alerts[{header, ...}], ...}.
+// Only the count reaches the presentation (one status line); alert
+// detail UI is a later tranche.
+- (NSUInteger)alertCountFromFeedData:(NSData *)data {
+    id root = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    if (![root isKindOfClass:[NSDictionary class]]) return self.alertCount;
+    id alerts = [(NSDictionary *)root objectForKey:@"alerts"];
+    if ([alerts isKindOfClass:[NSArray class]]) return [(NSArray *)alerts count];
+    return 0;
 }
 
 // YES if the keyed set differs OR any shared vehicle's position differs.
@@ -187,11 +310,18 @@
 }
 
 - (void)updateStatusLine {
+    // ONE presentation (scope ruling 2026-11-07): the whole merged
+    // network is "the Live Transit Detroit feed" — a single stamp, a
+    // single total vehicle count. No per-source breakdown is shown.
     NSString *stamp = self.feedGeneratedAt ?: @"—";
-    NSString *suffix = self.showingCachedData ? @"  •  cached" : @"";
+    NSString *cachedSuffix = self.showingCachedData ? @"  •  cached" : @"";
+    NSString *alertSuffix = self.alertCount > 0
+        ? [NSString stringWithFormat:@"  •  %lu service alerts",
+              (unsigned long)self.alertCount]
+        : @"";
     self.statusLabel.stringValue = [NSString stringWithFormat:
-        @"Feed %@  •  %lu vehicles%@",
-        stamp, (unsigned long)self.vehicles.count, suffix];
+        @"Live Transit Detroit feed %@  •  %lu vehicles%@%@",
+        stamp, (unsigned long)self.vehicles.count, alertSuffix, cachedSuffix];
 }
 
 #pragma mark - NSTableViewDataSource / Delegate
