@@ -132,13 +132,26 @@ only; measured 0 saturated pixels at every shipped size).
 
 ## Verification status — read before trusting
 
-- **This scaffold is syntax-checked only.** Every `.m` passes
-  `clang -target x86_64-apple-darwin17 -isysroot MacOSX10.13.sdk
-  -fobjc-runtime=macosx-10.13 -fobjc-arc -fsyntax-only` on the Linux VM.
-- **No runtime testing has happened** (Objective-C/Foundation cannot run
-  on this Linux VM; no parser smoke test is claimed).
-- **Full build + run verification requires Justin's MacBook Air**
-  (the native macOS 10.13 rig). Nothing here is shipped or published.
+- **CI-built release candidate (2026-11-08):** GitHub Actions built
+  this exact tree on a macOS runner (full `xcodebuild`, not just a
+  syntax pass), the audit-entry gate passed on the built bundle, and
+  the package was published as release `v0.1.0-rc1`:
+  `LiveTransitDetroit-v0.1.0-rc1.zip`, 120,127 B,
+  SHA-256 `2299d3209441cbd253fab7a2c125f604aa3fdc5ef27b4f586e1ff744830807f0`
+  (hash re-verified from a fresh download of the release asset; the
+  shipped bundle's Info.plist was read back from that zip: Academy
+  bundle ID, LSMin 10.13, audit entry all-true, `AppIcon.icns` in
+  Resources).
+- **No runtime testing has happened.** CI compilation is bytes-class
+  evidence; the app has never been launched anywhere. Behavior claims
+  wait for the rig pass on Justin's MacBook Air (the native macOS
+  10.13 rig) and the owner's verdict — that gate, not CI, decides
+  whether this RC becomes `released` in Distro. Nothing is distributed
+  through the catalog until then.
+- The five `.m` sources are unchanged from the T1 scaffold, whose
+  files passed the 10.13 SDK syntax gate
+  (`clang -target x86_64-apple-darwin17 -isysroot MacOSX10.13.sdk
+  -fobjc-runtime=macosx-10.13 -fobjc-arc -fsyntax-only`).
 
 ## Routes sample — SKIPPED (noted per instructions)
 
