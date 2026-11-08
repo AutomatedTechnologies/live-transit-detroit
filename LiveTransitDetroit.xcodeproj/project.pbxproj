@@ -11,6 +11,10 @@
 		DA0000000000000000000012 /* LTDMapView.m in Sources */ = {isa = PBXBuildFile; fileRef = DA0000000000000000000004 /* LTDMapView.m */; };
 		DA0000000000000000000013 /* LTDVehicle.m in Sources */ = {isa = PBXBuildFile; fileRef = DA0000000000000000000005 /* LTDVehicle.m */; };
 		DA0000000000000000000014 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = DA000000000000000000000B /* AppIcon.icns */; };
+		DA0000000000000000000042 /* map-geometry.json in Resources */ = {isa = PBXBuildFile; fileRef = DA0000000000000000000040 /* map-geometry.json */; };
+		DA0000000000000000000043 /* startup-sound.wav in Resources */ = {isa = PBXBuildFile; fileRef = DA0000000000000000000041 /* startup-sound.wav */; };
+		DA0000000000000000000044 /* LICENSE-ACADEMY.txt in Resources */ = {isa = PBXBuildFile; fileRef = DA0000000000000000000046 /* LICENSE-ACADEMY.txt */; };
+		DA0000000000000000000045 /* NOTICE.txt in Resources */ = {isa = PBXBuildFile; fileRef = DA0000000000000000000047 /* NOTICE.txt */; };
 		DA0000000000000000000030 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA000000000000000000001F /* AppKit.framework */; };
 		DA0000000000000000000031 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA0000000000000000000020 /* Foundation.framework */; };
 		DA0000000000000000000001 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
@@ -24,6 +28,10 @@
 		DA0000000000000000000009 /* LTDVehicle.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTDVehicle.h; sourceTree = "<group>"; };
 		DA000000000000000000000A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DA000000000000000000000B /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
+		DA0000000000000000000040 /* map-geometry.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = map-geometry.json; sourceTree = "<group>"; };
+		DA0000000000000000000041 /* startup-sound.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = startup-sound.wav; sourceTree = "<group>"; };
+		DA0000000000000000000046 /* LICENSE-ACADEMY.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE-ACADEMY.txt; sourceTree = "<group>"; };
+		DA0000000000000000000047 /* NOTICE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = NOTICE.txt; sourceTree = "<group>"; };
 		DA000000000000000000000C /* AppIcon.appiconset */ = {isa = PBXFileReference; lastKnownFileType = folder; path = AppIcon.appiconset; sourceTree = "<group>"; };
 		DA000000000000000000000D /* AppIcon.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = AppIcon.svg; sourceTree = "<group>"; };
 		DA000000000000000000000E /* LiveTransitDetroit.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = LiveTransitDetroit.xcconfig; sourceTree = "<group>"; };
@@ -46,6 +54,10 @@
 				DA000000000000000000000B /* AppIcon.icns */,
 				DA000000000000000000000C /* AppIcon.appiconset */,
 				DA000000000000000000000D /* AppIcon.svg */,
+				DA0000000000000000000040 /* map-geometry.json */,
+				DA0000000000000000000041 /* startup-sound.wav */,
+				DA0000000000000000000046 /* LICENSE-ACADEMY.txt */,
+				DA0000000000000000000047 /* NOTICE.txt */,
 			); path = Resources; sourceTree = "<group>"; };
 		DA0000000000000000000019 /* Products */ = {isa = PBXGroup; children = (
 				DA0000000000000000000015 /* LiveTransitDetroit.app */,
@@ -64,6 +76,10 @@
 			); runOnlyForDeploymentPostprocessing = 0; };
 		DA000000000000000000001D /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (
 				DA0000000000000000000014 /* AppIcon.icns in Resources */,
+				DA0000000000000000000042 /* map-geometry.json in Resources */,
+				DA0000000000000000000043 /* startup-sound.wav in Resources */,
+				DA0000000000000000000044 /* LICENSE-ACADEMY.txt in Resources */,
+				DA0000000000000000000045 /* NOTICE.txt in Resources */,
 			); runOnlyForDeploymentPostprocessing = 0; };
 		DA000000000000000000001C /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
 				DA000000000000000000000F /* main.m in Sources */,

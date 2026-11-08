@@ -75,6 +75,15 @@ jobs:
           print('Version:', d.get('CFBundleShortVersionString'), 'Build:', d.get('CFBundleVersion'))
           PYEOF
           test -f "$APP/Contents/Resources/AppIcon.icns" || cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+          # Hard gate (IP protection T2, J directive 2026-11-08): the bundle
+          # must carry the Academy license + notice in its Resources.
+          for f in LICENSE-ACADEMY.txt NOTICE.txt; do
+            if [ ! -f "$APP/Contents/Resources/$f" ]; then
+              echo "IP GATE FAIL: $f missing from bundle Resources" >&2
+              exit 1
+            fi
+          done
+          echo "IP GATE PASS: LICENSE-ACADEMY.txt + NOTICE.txt present in bundle Resources"
           ls -la "$APP/Contents/Resources/"
           VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST")
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
