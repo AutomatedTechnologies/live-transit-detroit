@@ -91,6 +91,8 @@ jobs:
           else
             LABEL="build-${{ github.run_number }}"
           fi
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $LABEL" "$PLIST" || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $LABEL" "$PLIST"
+          echo "Stamped CFBundleVersion: $(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST")"
           ZIP="LiveTransitDetroit-${LABEL}.zip"
           ditto -c -k --keepParent "$APP" "$ZIP"
           SHA=$(shasum -a 256 "$ZIP" | awk '{print $1}')
