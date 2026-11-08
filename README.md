@@ -1,4 +1,6 @@
-# Live Transit Detroit — native macOS app (codename:distro, T1 scaffold)
+# Live Transit Detroit — native macOS app (codename:distro)
+
+**Status 2026-11-08: v0.1.0-rc1 release candidate** — first packaged CI build (see the RC build record in the goal workspace). Release status still requires the High Sierra rig pass and the owner's verdict; nothing is `released`.
 
 Native Objective-C / AppKit client for Live Transit Detroit, built for
 distribution through codename:distro on macOS 10.13 (High Sierra).
@@ -84,22 +86,49 @@ Sources/
 
 ## Build
 
-On the High Sierra rig (Xcode 10.1):
+`LiveTransitDetroit.xcodeproj` is committed (minimal project: the five
+`Sources/*.m` files, `Sources/Info.plist`, `Resources/AppIcon.icns` as a
+resource; base configuration `LiveTransitDetroit.xcconfig`).
 
-1. Create an AppKit (Objective-C, ARC) app target named
-   `LiveTransitDetroit`, deployment target 10.13, and add everything in
-   `Sources/` (including `Info.plist`) to it. The deployment-target half
-   of the floor's matched pair (REQ-H-1.2) is declared in
-   `LiveTransitDetroit.xcconfig` at the repo root — assign it as the
-   target's base configuration so the setting lives in a file, not only
-   in this paragraph — or compile manually:
+CI (GitHub Actions, `.github/workflows/build-live-transit-detroit.yml`,
+macOS runner) is the build of record:
 
-   ```
-   clang -fobjc-arc -framework AppKit -mmacosx-version-min=10.13 \
-       Sources/*.m -o LiveTransitDetroit
-   ```
+1. Rebuilds `Resources/AppIcon.icns` with `iconutil` from the committed
+   `Resources/AppIcon.appiconset` (master: `Resources/AppIcon.svg`).
+2. `xcodebuild` Release, unsigned, `MACOSX_DEPLOYMENT_TARGET=10.13`,
+   `ARCHS=x86_64`.
+3. **Audit gate:** fails the build unless the built bundle's Info.plist
+   carries the Academy audit entry
+   (`com.detroitautomationacademy.audit`, Disassembled / Scanned /
+   Recompiled all true, Authority "Detroit Automation Academy", Date of
+   the pipeline pass), bundle ID
+   `com.detroitautomationacademy.livetransit`, and
+   `LSMinimumSystemVersion` 10.13.
+4. Packages `LiveTransitDetroit-<label>.zip`, computes its SHA-256, and
+   uploads it as a workflow artifact; on a `v*` tag it also publishes a
+   GitHub Release with that asset and a `release-manifest.txt`.
 
-   and place the binary in a `.app` bundle with `Sources/Info.plist`.
+On the High Sierra rig (Xcode 10.1) the same project opens directly;
+the deployment-target half of the floor's matched pair (REQ-H-1.2) is
+declared in `LiveTransitDetroit.xcconfig` at the repo root, assigned as
+the base configuration. A manual fallback remains:
+
+```
+clang -fobjc-arc -framework AppKit -mmacosx-version-min=10.13 \
+    Sources/*.m -o LiveTransitDetroit
+```
+
+with the binary placed in a `.app` bundle with `Sources/Info.plist`
+and `Resources/AppIcon.icns`.
+
+## Provenance
+
+Live Transit Detroit is an **Academy-original application**: written by
+the Detroit Automation Academy (publisher of record), MIT licensed
+(see `LICENSE`), no upstream codebase. The app icon is an original
+bus-front pictogram drawn in-house (`Resources/AppIcon.svg`) in the
+Academy monochrome v2 palette (SDS-1: ink `#000000` / paper `#ffffff`
+only; measured 0 saturated pixels at every shipped size).
 
 ## Verification status — read before trusting
 

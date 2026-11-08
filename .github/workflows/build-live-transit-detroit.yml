@@ -1,0 +1,113 @@
+name: Build Live Transit Detroit
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+# Release creation on tags uses GITHUB_TOKEN.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          xcrun --show-sdk-path
+
+      - name: Build app icon (iconutil, from the committed iconset)
+        run: |
+          rm -rf "$RUNNER_TEMP/AppIcon.iconset"
+          cp -R Resources/AppIcon.appiconset "$RUNNER_TEMP/AppIcon.iconset"
+          iconutil -c icns "$RUNNER_TEMP/AppIcon.iconset" -o Resources/AppIcon.icns
+          ls -la Resources/AppIcon.icns
+
+      - name: Build Live Transit Detroit (Release, unsigned, 10.13 floor)
+        run: |
+          set -o pipefail
+          xcodebuild -project LiveTransitDetroit.xcodeproj -target LiveTransitDetroit \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            MACOSX_DEPLOYMENT_TARGET=10.13 \
+            ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO \
+            build 2>&1 | tee xcodebuild.log
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: xcodebuild.log
+
+      - name: Verify bundle (audit entry gate) and package
+        if: success()
+        run: |
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -name 'LiveTransitDetroit.app' | grep -v '\.dSYM' | head -1)
+          if [ -z "$APP" ]; then
+            APP=$(find . -name 'LiveTransitDetroit.app' -path '*Release*' | head -1)
+          fi
+          echo "Built app: $APP"
+          test -n "$APP"
+          PLIST="$APP/Contents/Info.plist"
+          # Hard gate, mirroring Distro's installer rule (distro files/08):
+          # the bundle must carry the Academy audit entry, all flags true.
+          python3 - "$PLIST" <<'PYEOF'
+          import plistlib, sys
+          with open(sys.argv[1], 'rb') as f:
+              d = plistlib.load(f)
+          assert d.get('CFBundleIdentifier') == 'com.detroitautomationacademy.livetransit', d.get('CFBundleIdentifier')
+          assert d.get('LSMinimumSystemVersion') == '10.13', d.get('LSMinimumSystemVersion')
+          assert d.get('CFBundleIconFile') == 'AppIcon', d.get('CFBundleIconFile')
+          a = d.get('com.detroitautomationacademy.audit')
+          assert isinstance(a, dict), 'audit entry missing'
+          for k in ('Disassembled', 'Scanned', 'Recompiled'):
+              assert a.get(k) is True, f'audit flag {k} is not true: {a.get(k)!r}'
+          assert a.get('Authority') == 'Detroit Automation Academy', a.get('Authority')
+          assert a.get('Date'), 'audit Date missing'
+          print('AUDIT GATE PASS:', a)
+          print('Version:', d.get('CFBundleShortVersionString'), 'Build:', d.get('CFBundleVersion'))
+          PYEOF
+          test -f "$APP/Contents/Resources/AppIcon.icns" || cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+          ls -la "$APP/Contents/Resources/"
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST")
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            LABEL="${GITHUB_REF_NAME}"
+          else
+            LABEL="build-${{ github.run_number }}"
+          fi
+          ZIP="LiveTransitDetroit-${LABEL}.zip"
+          ditto -c -k --keepParent "$APP" "$ZIP"
+          SHA=$(shasum -a 256 "$ZIP" | awk '{print $1}')
+          SIZE=$(stat -f %z "$ZIP")
+          printf 'asset=%s\nsha256=%s\nsize=%s\nversion=%s\nlabel=%s\n' "$ZIP" "$SHA" "$SIZE" "$VERSION" "$LABEL" > release-manifest.txt
+          cat release-manifest.txt
+          echo "ZIP_NAME=$ZIP" >> "$GITHUB_ENV"
+
+      - name: Upload package + manifest (survival copy)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-transit-detroit-package
+          path: |
+            LiveTransitDetroit-*.zip
+            release-manifest.txt
+
+      - name: Publish release (tags only)
+        if: success() && github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BUILT=$(date -u '+%Y-%m-%d %H:%M UTC')
+          NOTES="Live Transit Detroit ${GITHUB_REF_NAME} — release candidate. Native macOS application for High Sierra (10.13), built by CI from Academy source. Publisher: Detroit Automation Academy. Bundle ID: com.detroitautomationacademy.livetransit. Carries the Academy audit entry in its Info.plist (Disassembled. Scanned. Recompiled.). Unsigned release candidate — release status still requires the High Sierra rig pass and the owner's verdict; this asset is the RC package for Distro catalog review.
+
+          BUILD STAMP — Built: $BUILT · Build: ${GITHUB_REF_NAME} (CI run ${{ github.run_id }}) · Agent: Forge · Authorized: J. Spencer Smith, directive of 2026-11-08 (release-candidate preparation for all Distro applications)"
+          gh release create "${GITHUB_REF_NAME}" "$ZIP_NAME" release-manifest.txt \
+            --title "Live Transit Detroit ${GITHUB_REF_NAME}" \
+            --notes "$NOTES"

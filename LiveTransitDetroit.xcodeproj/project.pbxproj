@@ -1,0 +1,169 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+		DA000000000000000000000F /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = DA0000000000000000000001 /* main.m */; };
+		DA0000000000000000000010 /* LTDAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = DA0000000000000000000002 /* LTDAppDelegate.m */; };
+		DA0000000000000000000011 /* LTDFeedClient.m in Sources */ = {isa = PBXBuildFile; fileRef = DA0000000000000000000003 /* LTDFeedClient.m */; };
+		DA0000000000000000000012 /* LTDMapView.m in Sources */ = {isa = PBXBuildFile; fileRef = DA0000000000000000000004 /* LTDMapView.m */; };
+		DA0000000000000000000013 /* LTDVehicle.m in Sources */ = {isa = PBXBuildFile; fileRef = DA0000000000000000000005 /* LTDVehicle.m */; };
+		DA0000000000000000000014 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = DA000000000000000000000B /* AppIcon.icns */; };
+		DA0000000000000000000030 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA000000000000000000001F /* AppKit.framework */; };
+		DA0000000000000000000031 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA0000000000000000000020 /* Foundation.framework */; };
+		DA0000000000000000000001 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		DA0000000000000000000002 /* LTDAppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LTDAppDelegate.m; sourceTree = "<group>"; };
+		DA0000000000000000000003 /* LTDFeedClient.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LTDFeedClient.m; sourceTree = "<group>"; };
+		DA0000000000000000000004 /* LTDMapView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LTDMapView.m; sourceTree = "<group>"; };
+		DA0000000000000000000005 /* LTDVehicle.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LTDVehicle.m; sourceTree = "<group>"; };
+		DA0000000000000000000006 /* LTDAppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTDAppDelegate.h; sourceTree = "<group>"; };
+		DA0000000000000000000007 /* LTDFeedClient.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTDFeedClient.h; sourceTree = "<group>"; };
+		DA0000000000000000000008 /* LTDMapView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTDMapView.h; sourceTree = "<group>"; };
+		DA0000000000000000000009 /* LTDVehicle.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTDVehicle.h; sourceTree = "<group>"; };
+		DA000000000000000000000A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		DA000000000000000000000B /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
+		DA000000000000000000000C /* AppIcon.appiconset */ = {isa = PBXFileReference; lastKnownFileType = folder; path = AppIcon.appiconset; sourceTree = "<group>"; };
+		DA000000000000000000000D /* AppIcon.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = AppIcon.svg; sourceTree = "<group>"; };
+		DA000000000000000000000E /* LiveTransitDetroit.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = LiveTransitDetroit.xcconfig; sourceTree = "<group>"; };
+		DA0000000000000000000015 /* LiveTransitDetroit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LiveTransitDetroit.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DA000000000000000000001F /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		DA0000000000000000000020 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		DA0000000000000000000018 /* Sources */ = {isa = PBXGroup; children = (
+				DA0000000000000000000001 /* main.m */,
+				DA0000000000000000000002 /* LTDAppDelegate.m */,
+				DA0000000000000000000003 /* LTDFeedClient.m */,
+				DA0000000000000000000004 /* LTDMapView.m */,
+				DA0000000000000000000005 /* LTDVehicle.m */,
+				DA0000000000000000000006 /* LTDAppDelegate.h */,
+				DA0000000000000000000007 /* LTDFeedClient.h */,
+				DA0000000000000000000008 /* LTDMapView.h */,
+				DA0000000000000000000009 /* LTDVehicle.h */,
+				DA000000000000000000000A /* Info.plist */,
+			); path = Sources; sourceTree = "<group>"; };
+		DA000000000000000000001A /* Resources */ = {isa = PBXGroup; children = (
+				DA000000000000000000000B /* AppIcon.icns */,
+				DA000000000000000000000C /* AppIcon.appiconset */,
+				DA000000000000000000000D /* AppIcon.svg */,
+			); path = Resources; sourceTree = "<group>"; };
+		DA0000000000000000000019 /* Products */ = {isa = PBXGroup; children = (
+				DA0000000000000000000015 /* LiveTransitDetroit.app */,
+			); name = Products; sourceTree = "<group>"; };
+		DA0000000000000000000017 = {isa = PBXGroup; children = (
+				DA000000000000000000000E /* LiveTransitDetroit.xcconfig */,
+				DA0000000000000000000018 /* Sources */,
+				DA000000000000000000001A /* Resources */,
+				DA000000000000000000001F /* AppKit.framework */,
+				DA0000000000000000000020 /* Foundation.framework */,
+				DA0000000000000000000019 /* Products */,
+			); sourceTree = "<group>"; };
+		DA000000000000000000001E /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (
+				DA0000000000000000000030 /* AppKit.framework in Frameworks */,
+				DA0000000000000000000031 /* Foundation.framework in Frameworks */,
+			); runOnlyForDeploymentPostprocessing = 0; };
+		DA000000000000000000001D /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (
+				DA0000000000000000000014 /* AppIcon.icns in Resources */,
+			); runOnlyForDeploymentPostprocessing = 0; };
+		DA000000000000000000001C /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
+				DA000000000000000000000F /* main.m in Sources */,
+				DA0000000000000000000010 /* LTDAppDelegate.m in Sources */,
+				DA0000000000000000000011 /* LTDFeedClient.m in Sources */,
+				DA0000000000000000000012 /* LTDMapView.m in Sources */,
+				DA0000000000000000000013 /* LTDVehicle.m in Sources */,
+			); runOnlyForDeploymentPostprocessing = 0; };
+		DA000000000000000000001B /* LiveTransitDetroit */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DA0000000000000000000022 /* Build configuration list for PBXNativeTarget "LiveTransitDetroit" */;
+			buildPhases = (
+				DA000000000000000000001C /* Sources */,
+				DA000000000000000000001E /* Frameworks */,
+				DA000000000000000000001D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LiveTransitDetroit;
+			productName = LiveTransitDetroit;
+			productReference = DA0000000000000000000015 /* LiveTransitDetroit.app */;
+			productType = "com.apple.product-type.application";
+		};
+		DA0000000000000000000016 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1010;
+				ORGANIZATIONNAME = "Detroit Automation Academy";
+				TargetAttributes = {
+					DA000000000000000000001B = {
+						CreatedOnToolsVersion = 10.1;
+					};
+				};
+			};
+			buildConfigurationList = DA0000000000000000000021 /* Build configuration list for PBXProject "LiveTransitDetroit" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = DA0000000000000000000017;
+			productRefGroup = DA0000000000000000000019 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				DA000000000000000000001B /* LiveTransitDetroit */,
+			);
+		};
+		DA0000000000000000000023 /* Debug */ = {isa = XCBuildConfiguration;
+			baseConfigurationReference = DA000000000000000000000E /* LiveTransitDetroit.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+			};
+			name = Debug;
+		};
+		DA0000000000000000000024 /* Release */ = {isa = XCBuildConfiguration;
+			baseConfigurationReference = DA000000000000000000000E /* LiveTransitDetroit.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+			};
+			name = Release;
+		};
+		DA0000000000000000000025 /* Debug */ = {isa = XCBuildConfiguration;
+			baseConfigurationReference = DA000000000000000000000E /* LiveTransitDetroit.xcconfig */;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				INFOPLIST_FILE = Sources/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				PRODUCT_BUNDLE_IDENTIFIER = com.detroitautomationacademy.livetransit;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		DA0000000000000000000026 /* Release */ = {isa = XCBuildConfiguration;
+			baseConfigurationReference = DA000000000000000000000E /* LiveTransitDetroit.xcconfig */;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				INFOPLIST_FILE = Sources/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				PRODUCT_BUNDLE_IDENTIFIER = com.detroitautomationacademy.livetransit;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		DA0000000000000000000021 /* Build configuration list for PBXProject "LiveTransitDetroit" */ = {isa = XCConfigurationList; buildConfigurations = (
+				DA0000000000000000000023 /* Debug */,
+				DA0000000000000000000024 /* Release */,
+			); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		DA0000000000000000000022 /* Build configuration list for PBXNativeTarget "LiveTransitDetroit" */ = {isa = XCConfigurationList; buildConfigurations = (
+				DA0000000000000000000025 /* Debug */,
+				DA0000000000000000000026 /* Release */,
+			); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+	};
+	rootObject = DA0000000000000000000016 /* Project object */;
+}

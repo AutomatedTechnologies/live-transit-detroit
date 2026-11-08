@@ -24,5 +24,24 @@
 	<string>NSApplication</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>com.detroitautomationacademy.audit</key>
+	<dict>
+		<key>Disassembled</key>
+		<true/>
+		<key>Scanned</key>
+		<true/>
+		<key>Recompiled</key>
+		<true/>
+		<key>Authority</key>
+		<string>Detroit Automation Academy</string>
+		<key>Date</key>
+		<string>2026-11-08</string>
+	</dict>
+	<key>NSHumanReadableCopyright</key>
+	<string>Detroit Automation Academy. Live Transit Detroit is an Academy-original application.</string>
 </dict>
 </plist>
