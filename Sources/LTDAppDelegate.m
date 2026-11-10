@@ -14,6 +14,17 @@
 // per-source wording anywhere in the presentation. The two per-file
 // arrays below are data plumbing so each file's refresh can land
 // independently; they are never shown separately.
+//
+// SDS-10 conformance (v0.1.0-rc3): the app is nib-less, so the main
+// menu is constructed in code by -installMainMenu (the program's
+// programmatic pattern: APDMainController -installMainMenu,
+// DistroAppDelegate buildMenu) and the SDS-8 welcome sheet is
+// presented at launch by -presentWelcomeSheet. Both the welcome
+// sheet and the About panel display the version read at runtime
+// from the bundle's own Info.plist (CFBundleVersion) via
+// -bundleVersionString — never a hardcoded string. The bundled
+// startup-sound.wav (byte-identical to the SDS-10 master) plays
+// once when the welcome sheet presents.
 #import "LTDAppDelegate.h"
 #import "LTDMapView.h"
 #import "LTDVehicle.h"
@@ -36,6 +47,8 @@
 @property (nonatomic, copy, nullable) NSString *feedGeneratedAt;
 @property (nonatomic, assign) NSUInteger alertCount;
 @property (nonatomic, assign) BOOL showingCachedData;
+@property (nonatomic, strong) NSWindow *welcomeSheet;
+@property (nonatomic, strong) NSSound *startupSound;
 @end
 
 @implementation LTDAppDelegate
@@ -45,7 +58,9 @@
     self.vehicles = [NSArray array];
     self.vehiclesFileVehicles = [NSArray array];
     self.displayFileVehicles = [NSArray array];
+    [self installMainMenu];
     [self buildWindow];
+    [self presentWelcomeSheet];
 
     // 1) Instant cold launch: paint the last good MERGED set from the
     // per-file disk caches (both vehicle files together restore the
@@ -96,11 +111,243 @@
     (void)notification;
     [self.refreshTimer invalidate];
     self.refreshTimer = nil;
+    [self.startupSound stop];
+    self.startupSound = nil;
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender {
     (void)sender;
     return YES;
+}
+
+#pragma mark - Main menu bar (SDS-10 10.4, code-constructed)
+
+// The shipped build string, read from the bundle's own Info.plist at
+// runtime (SDS-10 10.2.2). CI stamps CFBundleVersion with the release
+// tag at packaging, so the welcome sheet and the About panel show the
+// shipped build (e.g. v0.1.0-rc3) — never a hardcoded string.
+- (NSString *)bundleVersionString {
+    NSString *version =
+        [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleVersion"];
+    return version.length > 0 ? version : @"—";
+}
+
+- (NSMenuItem *)menuItemWithTitle:(NSString *)title
+                           action:(SEL)action
+                    keyEquivalent:(NSString *)keyEquivalent
+                           target:(id)target {
+    NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title
+                                                  action:action
+                                           keyEquivalent:keyEquivalent];
+    item.target = target;
+    return item;
+}
+
+// Every item below is wired: app-menu items target NSApp (standard
+// actions) or this controller (About, Refresh); File/Window items use
+// the standard first-responder actions; Help items open real pages
+// via NSWorkspace. There is no Edit menu: the app has no editable
+// text field anywhere (the status line is a label and the vehicle
+// table is read-only), so Edit items would be permanently dead —
+// the Distro precedent (DistroAppDelegate buildMenu).
+- (void)installMainMenu {
+    NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:@"MainMenu"];
+
+    // App menu.
+    NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"Live Transit Detroit"];
+    [appMenu addItem:[self menuItemWithTitle:@"About Live Transit Detroit"
+                                      action:@selector(showAboutPanel:)
+                               keyEquivalent:@""
+                                      target:self]];
+    [appMenu addItem:[self menuItemWithTitle:@"Refresh Now"
+                                      action:@selector(refreshFromMenu:)
+                               keyEquivalent:@"r"
+                                      target:self]];
+    [appMenu addItem:[NSMenuItem separatorItem]];
+    [appMenu addItem:[self menuItemWithTitle:@"Hide Live Transit Detroit"
+                                      action:@selector(hide:)
+                               keyEquivalent:@"h"
+                                      target:NSApp]];
+    NSMenuItem *hideOthers = [self menuItemWithTitle:@"Hide Others"
+                                              action:@selector(hideOtherApplications:)
+                                       keyEquivalent:@"h"
+                                              target:NSApp];
+    hideOthers.keyEquivalentModifierMask =
+        NSEventModifierFlagCommand | NSEventModifierFlagOption;
+    [appMenu addItem:hideOthers];
+    [appMenu addItem:[self menuItemWithTitle:@"Show All"
+                                      action:@selector(unhideAllApplications:)
+                               keyEquivalent:@""
+                                      target:NSApp]];
+    [appMenu addItem:[NSMenuItem separatorItem]];
+    [appMenu addItem:[self menuItemWithTitle:@"Quit Live Transit Detroit"
+                                      action:@selector(terminate:)
+                               keyEquivalent:@"q"
+                                      target:NSApp]];
+    NSMenuItem *appItem = [[NSMenuItem alloc] initWithTitle:@"Live Transit Detroit"
+                                                     action:nil
+                                              keyEquivalent:@""];
+    appItem.submenu = appMenu;
+    [mainMenu addItem:appItem];
+
+    // File menu.
+    NSMenu *fileMenu = [[NSMenu alloc] initWithTitle:@"File"];
+    [fileMenu addItem:[self menuItemWithTitle:@"Close Window"
+                                       action:@selector(performClose:)
+                                keyEquivalent:@"w"
+                                       target:nil]];
+    NSMenuItem *fileItem = [[NSMenuItem alloc] initWithTitle:@"File"
+                                                      action:nil
+                                               keyEquivalent:@""];
+    fileItem.submenu = fileMenu;
+    [mainMenu addItem:fileItem];
+
+    // Window menu (registered as the app's windows menu).
+    NSMenu *windowMenu = [[NSMenu alloc] initWithTitle:@"Window"];
+    [windowMenu addItem:[self menuItemWithTitle:@"Minimize"
+                                         action:@selector(performMiniaturize:)
+                                  keyEquivalent:@"m"
+                                         target:nil]];
+    [windowMenu addItem:[self menuItemWithTitle:@"Zoom"
+                                         action:@selector(performZoom:)
+                                  keyEquivalent:@""
+                                         target:nil]];
+    [windowMenu addItem:[NSMenuItem separatorItem]];
+    [windowMenu addItem:[self menuItemWithTitle:@"Bring All to Front"
+                                         action:@selector(arrangeInFront:)
+                                  keyEquivalent:@""
+                                         target:NSApp]];
+    NSMenuItem *windowItem = [[NSMenuItem alloc] initWithTitle:@"Window"
+                                                        action:nil
+                                                 keyEquivalent:@""];
+    windowItem.submenu = windowMenu;
+    [mainMenu addItem:windowItem];
+    NSApp.windowsMenu = windowMenu;
+
+    // Help menu (registered as the app's help menu).
+    NSMenu *helpMenu = [[NSMenu alloc] initWithTitle:@"Help"];
+    [helpMenu addItem:[self menuItemWithTitle:@"Live Transit Detroit Help"
+                                       action:@selector(openHelp:)
+                                keyEquivalent:@""
+                                       target:self]];
+    [helpMenu addItem:[self menuItemWithTitle:@"Detroit Automation Academy Website"
+                                       action:@selector(openAcademyWebsite:)
+                                keyEquivalent:@""
+                                       target:self]];
+    NSMenuItem *helpItem = [[NSMenuItem alloc] initWithTitle:@"Help"
+                                                      action:nil
+                                               keyEquivalent:@""];
+    helpItem.submenu = helpMenu;
+    [mainMenu addItem:helpItem];
+    NSApp.helpMenu = helpMenu;
+
+    [NSApp setMainMenu:mainMenu];
+}
+
+- (void)showAboutPanel:(id)sender {
+    (void)sender;
+    NSAlert *about = [[NSAlert alloc] init];
+    about.messageText = @"Live Transit Detroit";
+    about.informativeText = [NSString stringWithFormat:
+        @"Version %@\nDetroit Automation Academy\n\n"
+        @"Live regional transit for the District of Detroit — one "
+        @"network on one map, native on High Sierra.",
+        [self bundleVersionString]];
+    [about addButtonWithTitle:@"OK"];
+    [about runModal];
+}
+
+- (void)refreshFromMenu:(id)sender {
+    (void)sender;
+    [self refreshFeeds:nil];
+}
+
+- (void)openHelp:(id)sender {
+    (void)sender;
+    [[NSWorkspace sharedWorkspace] openURL:
+        [NSURL URLWithString:@"https://detroitautomationacademy.com/live-transit-detroit/"]];
+}
+
+- (void)openAcademyWebsite:(id)sender {
+    (void)sender;
+    [[NSWorkspace sharedWorkspace] openURL:
+        [NSURL URLWithString:@"https://detroitautomationacademy.com/"]];
+}
+
+#pragma mark - SDS-8 welcome sheet (SDS-10 10.2 version line + 10.3 sound)
+
+- (NSTextField *)welcomeLabelWithText:(NSString *)text
+                                 font:(NSFont *)font
+                                frame:(NSRect)frame {
+    NSTextField *label = [[NSTextField alloc] initWithFrame:frame];
+    label.stringValue = text;
+    label.font = font;
+    label.bezeled = NO;
+    label.drawsBackground = NO;
+    label.editable = NO;
+    label.selectable = NO;
+    label.alignment = NSTextAlignmentCenter;
+    return label;
+}
+
+- (void)presentWelcomeSheet {
+    NSWindow *sheet = [[NSWindow alloc]
+        initWithContentRect:NSMakeRect(0, 0, 440, 264)
+                  styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable)
+                    backing:NSBackingStoreBuffered
+                      defer:NO];
+    sheet.title = @"Welcome";
+    NSView *content = sheet.contentView;
+
+    [content addSubview:[self welcomeLabelWithText:@"Live Transit Detroit"
+                                              font:[NSFont boldSystemFontOfSize:20.0]
+                                             frame:NSMakeRect(20, 196, 400, 28)]];
+    [content addSubview:[self welcomeLabelWithText:@"Detroit Automation Academy"
+                                              font:[NSFont systemFontOfSize:12.0]
+                                             frame:NSMakeRect(20, 172, 400, 18)]];
+    // The version line (SDS-10 10.2.1): the shipped build string,
+    // read from this bundle's Info.plist at runtime.
+    [content addSubview:[self welcomeLabelWithText:
+        [NSString stringWithFormat:@"Version %@", [self bundleVersionString]]
+                                              font:[NSFont systemFontOfSize:12.0]
+                                             frame:NSMakeRect(20, 148, 400, 18)]];
+    [content addSubview:[self welcomeLabelWithText:
+        @"Live regional transit for the District of Detroit — the whole "
+        @"network on one map, updated from the Live Transit Detroit feed."
+                                              font:[NSFont systemFontOfSize:12.0]
+                                             frame:NSMakeRect(40, 84, 360, 52)]];
+
+    NSButton *continueButton = [[NSButton alloc]
+        initWithFrame:NSMakeRect(170, 24, 100, 32)];
+    continueButton.title = @"Continue";
+    continueButton.bezelStyle = NSBezelStyleRounded;
+    continueButton.target = self;
+    continueButton.action = @selector(dismissWelcomeSheet:);
+    continueButton.keyEquivalent = @"\r";
+    [content addSubview:continueButton];
+
+    self.welcomeSheet = sheet;
+
+    // Startup sound (SDS-10 10.3): the bundled asset, byte-identical
+    // to the library master, plays once as the sheet presents; a
+    // missing asset is a silent welcome, never an error.
+    NSString *soundPath = [[NSBundle mainBundle] pathForResource:@"startup-sound"
+                                                          ofType:@"wav"];
+    if (soundPath != nil) {
+        self.startupSound = [[NSSound alloc] initWithContentsOfFile:soundPath
+                                                        byReference:YES];
+        [self.startupSound play];
+    }
+
+    [self.window beginSheet:sheet completionHandler:nil];
+}
+
+- (void)dismissWelcomeSheet:(id)sender {
+    (void)sender;
+    if (self.welcomeSheet != nil) {
+        [self.window endSheet:self.welcomeSheet];
+        self.welcomeSheet = nil;
+    }
 }
 
 #pragma mark - Window / layout (programmatic, no XIB)

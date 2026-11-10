@@ -72,6 +72,14 @@ jobs:
           assert a.get('Authority') == 'Detroit Automation Academy', a.get('Authority')
           assert a.get('Date'), 'audit Date missing'
           print('AUDIT GATE PASS:', a)
+          c = d.get('com.detroitautomationacademy.conformance')
+          assert isinstance(c, dict), 'SDS-10 conformance entry missing'
+          assert c.get('Standard') == 'SDS-10', c.get('Standard')
+          for k in ('Logo', 'VersionAtStartup', 'StartupSound', 'MenuBar'):
+              assert c.get(k) is True, f'conformance flag {k} is not true: {c.get(k)!r}'
+          assert c.get('Authority') == 'Detroit Automation Academy', c.get('Authority')
+          assert c.get('Date'), 'conformance Date missing'
+          print('CONFORMANCE GATE PASS:', c)
           print('Version:', d.get('CFBundleShortVersionString'), 'Build:', d.get('CFBundleVersion'))
           PYEOF
           test -f "$APP/Contents/Resources/AppIcon.icns" || cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"

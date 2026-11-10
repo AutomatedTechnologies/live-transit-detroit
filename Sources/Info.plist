@@ -39,7 +39,24 @@
 		<key>Authority</key>
 		<string>Detroit Automation Academy</string>
 		<key>Date</key>
-		<string>2026-11-08</string>
+		<string>2026-11-10</string>
+	</dict>
+	<key>com.detroitautomationacademy.conformance</key>
+	<dict>
+		<key>Standard</key>
+		<string>SDS-10</string>
+		<key>Logo</key>
+		<true/>
+		<key>VersionAtStartup</key>
+		<true/>
+		<key>StartupSound</key>
+		<true/>
+		<key>MenuBar</key>
+		<true/>
+		<key>Authority</key>
+		<string>Detroit Automation Academy</string>
+		<key>Date</key>
+		<string>2026-11-10</string>
 	</dict>
 	<key>NSHumanReadableCopyright</key>
 	<string>Detroit Automation Academy. Live Transit Detroit is an Academy-original application.</string>
