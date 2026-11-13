@@ -25,10 +25,116 @@
 // -bundleVersionString — never a hardcoded string. The bundled
 // startup-sound.wav (byte-identical to the SDS-10 master) plays
 // once when the welcome sheet presents.
+//
+// Uplift (v0.1.0-rc4, SH-3 Coding under the standing delegation
+// authority of 2026-11-13; conformance listing files/06 rows
+// 23/5/6/8/12/21): the vehicle-table columns are non-editable by
+// construction (-addColumn: sets editable = NO); the status line
+// renders the feed stamp as Detroit local time in plain language
+// via NSDateFormatter (America/Detroit) with singular/plural
+// correctness; the welcome sheet carries LTDWelcomeMarkView — one
+// view drawing the bundle AppIcon composition (SDS-3 trimmed tile
+// + bus glyph, measured from the shipped AppIcon.icns) with the
+// SDS-8 signal-arc pulse (static under Reduce Motion) — plus one
+// line of verified-state copy. Patterns adopted piece by piece
+// from the unshipped local redesign line (commit 05e7406): the
+// ISO-8601 stamp parser, the plural helper, the Reduce Motion
+// check, and the welcome animation timer.
 #import "LTDAppDelegate.h"
 #import "LTDMapView.h"
 #import "LTDVehicle.h"
 #import "LTDFeedClient.h"
+#import <math.h>
+
+// LTDWelcomeMarkView — the SDS-8 welcome mark (uplift T3, listing
+// rows 8 + 12). ONE view draws the bundle AppIcon composition —
+// the SDS-3 trimmed construction (white rounded tile, bounding box
+// (92,92)–(931,931) at the 1024 master scale, corner radius 185,
+// #d8d8d8 hairline) carrying the ink bus glyph — per SDS-10
+// 10.1.2's one-view pattern (the DistroLogoView pattern). Glyph
+// geometry is measured from the shipped AppIcon.icns 1024 px
+// rendition of v0.1.0-rc3: body (287,262) 449×449 r≈70, windshield
+// (347,322) 330×120 r30, headlights at (397,610) and (627,610)
+// r34, grille (472,566) 80×92, wheels (347,711) and (587,711)
+// 89×44. The SDS-8 signal-arc pulse radiates from the tile's top
+// corner into the transparent margin: two quarter arcs whose alpha
+// pulses while animated; phase < 0 draws them static at full
+// strength (Reduce Motion). Flipped coordinates match the icon
+// master's (y down).
+@interface LTDWelcomeMarkView : NSView
+@property (nonatomic, assign) double phase;
+@end
+
+@implementation LTDWelcomeMarkView
+
+- (BOOL)isFlipped {
+    return YES;
+}
+
+- (void)drawRect:(NSRect)dirtyRect {
+    (void)dirtyRect;
+    CGFloat s = fmin(NSWidth(self.bounds), NSHeight(self.bounds)) / 1024.0;
+    CGFloat ox = (NSWidth(self.bounds) - 1024.0 * s) / 2.0;
+    CGFloat oy = (NSHeight(self.bounds) - 1024.0 * s) / 2.0;
+    NSColor *ink = [NSColor colorWithCalibratedWhite:0.067 alpha:1.0];
+    NSColor *paper = [NSColor colorWithCalibratedWhite:1.0 alpha:1.0];
+
+    // Tile (SDS-3 trimmed construction of record).
+    NSRect tile = NSMakeRect(ox + 92.0 * s, oy + 92.0 * s,
+                             840.0 * s, 840.0 * s);
+    NSBezierPath *tilePath =
+        [NSBezierPath bezierPathWithRoundedRect:tile
+                                        xRadius:185.0 * s
+                                        yRadius:185.0 * s];
+    [paper setFill];
+    [tilePath fill];
+    [[NSColor colorWithCalibratedWhite:0.847 alpha:1.0] setStroke];
+    tilePath.lineWidth = 3.0 * s;
+    [tilePath stroke];
+
+    // Bus glyph, ink masses.
+    [ink setFill];
+    [[NSBezierPath bezierPathWithRoundedRect:
+        NSMakeRect(ox + 287.0 * s, oy + 262.0 * s, 449.0 * s, 449.0 * s)
+                                     xRadius:70.0 * s yRadius:70.0 * s] fill];
+    NSRectFill(NSMakeRect(ox + 347.0 * s, oy + 711.0 * s, 89.0 * s, 44.0 * s));
+    NSRectFill(NSMakeRect(ox + 587.0 * s, oy + 711.0 * s, 89.0 * s, 44.0 * s));
+
+    // Paper cutouts: windshield, headlights, grille.
+    [paper setFill];
+    [[NSBezierPath bezierPathWithRoundedRect:
+        NSMakeRect(ox + 347.0 * s, oy + 322.0 * s, 330.0 * s, 120.0 * s)
+                                     xRadius:30.0 * s yRadius:30.0 * s] fill];
+    [[NSBezierPath bezierPathWithOvalInRect:
+        NSMakeRect(ox + 363.0 * s, oy + 576.0 * s, 68.0 * s, 68.0 * s)] fill];
+    [[NSBezierPath bezierPathWithOvalInRect:
+        NSMakeRect(ox + 593.0 * s, oy + 576.0 * s, 68.0 * s, 68.0 * s)] fill];
+    NSRectFill(NSMakeRect(ox + 472.0 * s, oy + 566.0 * s, 80.0 * s, 92.0 * s));
+
+    // Signal arcs (SDS-8 pulse): quarter arcs NE of the tile's top
+    // corner (932, 92) — in flipped coordinates NE is +x, −y, so the
+    // arc is swept parametrically to keep the quadrant exact.
+    double pulse  = self.phase < 0 ? 1.0 : 0.55 + 0.45 * sin(self.phase);
+    double pulse2 = self.phase < 0 ? 1.0 : 0.55 + 0.45 * sin(self.phase - 1.2);
+    const double radii[2] = {55.0, 85.0};
+    const double alphas[2] = {pulse, pulse2};
+    for (int i = 0; i < 2; i++) {
+        NSBezierPath *arc = [NSBezierPath bezierPath];
+        for (int step = 0; step <= 24; step++) {
+            double t = (M_PI / 2.0) * (step / 24.0);
+            NSPoint pt = NSMakePoint(ox + (932.0 + radii[i] * cos(t)) * s,
+                                     oy + (92.0 - radii[i] * sin(t)) * s);
+            if (step == 0) [arc moveToPoint:pt];
+            else           [arc lineToPoint:pt];
+        }
+        arc.lineWidth = 26.0 * s;
+        arc.lineCapStyle = NSRoundLineCapStyle;
+        [[ink colorWithAlphaComponent:0.35 + 0.65 * alphas[i]] setStroke];
+        [arc stroke];
+    }
+}
+
+@end
 
 @interface LTDAppDelegate ()
 @property (nonatomic, strong) NSWindow *window;
@@ -49,6 +155,9 @@
 @property (nonatomic, assign) BOOL showingCachedData;
 @property (nonatomic, strong) NSWindow *welcomeSheet;
 @property (nonatomic, strong) NSSound *startupSound;
+@property (nonatomic, strong) LTDWelcomeMarkView *welcomeMark;
+@property (nonatomic, strong) NSTimer *welcomeTimer;
+@property (nonatomic, assign) double welcomePhase;
 @end
 
 @implementation LTDAppDelegate
@@ -109,6 +218,8 @@
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
     (void)notification;
+    [self.welcomeTimer invalidate];
+    self.welcomeTimer = nil;
     [self.refreshTimer invalidate];
     self.refreshTimer = nil;
     [self.startupSound stop];
@@ -290,32 +401,56 @@
     return label;
 }
 
+- (BOOL)reduceMotionEnabled {
+    NSWorkspace *ws = [NSWorkspace sharedWorkspace];
+    if ([ws respondsToSelector:@selector(accessibilityDisplayShouldReduceMotion)]) {
+        return ws.accessibilityDisplayShouldReduceMotion;
+    }
+    return NO;
+}
+
 - (void)presentWelcomeSheet {
     NSWindow *sheet = [[NSWindow alloc]
-        initWithContentRect:NSMakeRect(0, 0, 440, 264)
+        initWithContentRect:NSMakeRect(0, 0, 440, 340)
                   styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable)
                     backing:NSBackingStoreBuffered
                       defer:NO];
     sheet.title = @"Welcome";
     NSView *content = sheet.contentView;
 
+    // The mark (SDS-8 + SDS-10 10.1.2, uplift T3): one view drawing
+    // the bundle AppIcon composition with the signal-arc pulse —
+    // animated unless Reduce Motion is on, static then.
+    BOOL reduceMotion = [self reduceMotionEnabled];
+    self.welcomeMark = [[LTDWelcomeMarkView alloc]
+        initWithFrame:NSMakeRect(176, 232, 88, 88)];
+    self.welcomeMark.phase = reduceMotion ? -1.0 : 0.0;
+    [content addSubview:self.welcomeMark];
+
     [content addSubview:[self welcomeLabelWithText:@"Live Transit Detroit"
                                               font:[NSFont boldSystemFontOfSize:20.0]
-                                             frame:NSMakeRect(20, 196, 400, 28)]];
+                                             frame:NSMakeRect(20, 198, 400, 28)]];
     [content addSubview:[self welcomeLabelWithText:@"Detroit Automation Academy"
                                               font:[NSFont systemFontOfSize:12.0]
-                                             frame:NSMakeRect(20, 172, 400, 18)]];
+                                             frame:NSMakeRect(20, 176, 400, 18)]];
     // The version line (SDS-10 10.2.1): the shipped build string,
     // read from this bundle's Info.plist at runtime.
     [content addSubview:[self welcomeLabelWithText:
         [NSString stringWithFormat:@"Version %@", [self bundleVersionString]]
                                               font:[NSFont systemFontOfSize:12.0]
-                                             frame:NSMakeRect(20, 148, 400, 18)]];
+                                             frame:NSMakeRect(20, 154, 400, 18)]];
+    // Verified-state copy (SDS-8): the catalog state of this build
+    // and its rig state, stated as fact — the release candidate has
+    // not had its High Sierra rig pass (listing rows 13 + 24).
+    [content addSubview:[self welcomeLabelWithText:
+        @"Release candidate — High Sierra verification pending"
+                                              font:[NSFont systemFontOfSize:12.0]
+                                             frame:NSMakeRect(20, 132, 400, 18)]];
     [content addSubview:[self welcomeLabelWithText:
         @"Live regional transit for the District of Detroit — the whole "
         @"network on one map, updated from the Live Transit Detroit feed."
                                               font:[NSFont systemFontOfSize:12.0]
-                                             frame:NSMakeRect(40, 84, 360, 52)]];
+                                             frame:NSMakeRect(40, 76, 360, 44)]];
 
     NSButton *continueButton = [[NSButton alloc]
         initWithFrame:NSMakeRect(170, 24, 100, 32)];
@@ -327,6 +462,15 @@
     [content addSubview:continueButton];
 
     self.welcomeSheet = sheet;
+
+    if (!reduceMotion) {
+        self.welcomePhase = 0.0;
+        self.welcomeTimer = [NSTimer scheduledTimerWithTimeInterval:0.06
+                                                               target:self
+                                                             selector:@selector(tickWelcomeAnimation:)
+                                                             userInfo:nil
+                                                              repeats:YES];
+    }
 
     // Startup sound (SDS-10 10.3): the bundled asset, byte-identical
     // to the library master, plays once as the sheet presents; a
@@ -342,8 +486,17 @@
     [self.window beginSheet:sheet completionHandler:nil];
 }
 
+- (void)tickWelcomeAnimation:(NSTimer *)timer {
+    (void)timer;
+    self.welcomePhase += 0.18;
+    self.welcomeMark.phase = self.welcomePhase;
+    [self.welcomeMark setNeedsDisplay:YES];
+}
+
 - (void)dismissWelcomeSheet:(id)sender {
     (void)sender;
+    [self.welcomeTimer invalidate];
+    self.welcomeTimer = nil;
     if (self.welcomeSheet != nil) {
         [self.window endSheet:self.welcomeSheet];
         self.welcomeSheet = nil;
@@ -412,6 +565,12 @@
     NSTableColumn *column = [[NSTableColumn alloc] initWithIdentifier:identifier];
     column.title = title;
     column.width = width;
+    // Read-only live data (uplift T1, listing row 23): NSTableColumn
+    // is editable by default construction, which put an edit
+    // affordance on the live table even though no setObjectValue
+    // path exists. Non-editable by construction, all three columns
+    // (this helper is the single construction path).
+    column.editable = NO;
     [self.tableView addTableColumn:column];
 }
 
@@ -556,19 +715,73 @@
     [self updateStatusLine];
 }
 
+// The feed's generated_at stamp is an ISO-8601 UTC string. Parse it
+// to a real NSDate (parser pattern adopted from the unshipped
+// redesign line, commit 05e7406) so the status line can render it
+// as Detroit local time — the raw string never reaches a surface
+// (uplift T1, listing row 5).
+- (NSDate *)dateFromFeedStamp:(NSString *)stamp {
+    if (stamp.length == 0) return nil;
+    static NSArray<NSDateFormatter *> *formatters = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        NSMutableArray<NSDateFormatter *> *list = [NSMutableArray array];
+        for (NSString *format in @[@"yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX",
+                                   @"yyyy-MM-dd'T'HH:mm:ssXXXXX",
+                                   @"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                                   @"yyyy-MM-dd'T'HH:mm:ss'Z'"]) {
+            NSDateFormatter *f = [[NSDateFormatter alloc] init];
+            f.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+            f.timeZone = [NSTimeZone timeZoneForSecondsFromGMT:0];
+            f.dateFormat = format;
+            [list addObject:f];
+        }
+        formatters = [list copy];
+    });
+    for (NSDateFormatter *f in formatters) {
+        NSDate *date = [f dateFromString:stamp];
+        if (date != nil) return date;
+    }
+    return nil;
+}
+
+// Singular/plural correctness for counted nouns in the status line
+// (uplift T1, listing row 6: "1 service alert", never "1 service
+// alerts"). Helper adopted from the redesign line (commit 05e7406).
+- (NSString *)plural:(NSUInteger)count singular:(NSString *)one plural:(NSString *)many {
+    return [NSString stringWithFormat:@"%lu %@",
+            (unsigned long)count, count == 1 ? one : many];
+}
+
 - (void)updateStatusLine {
     // ONE presentation (scope ruling 2026-11-07): the whole merged
     // network is "the Live Transit Detroit feed" — a single stamp, a
     // single total vehicle count. No per-source breakdown is shown.
-    NSString *stamp = self.feedGeneratedAt ?: @"—";
-    NSString *cachedSuffix = self.showingCachedData ? @"  •  cached" : @"";
-    NSString *alertSuffix = self.alertCount > 0
-        ? [NSString stringWithFormat:@"  •  %lu service alerts",
-              (unsigned long)self.alertCount]
-        : @"";
-    self.statusLabel.stringValue = [NSString stringWithFormat:
-        @"Live Transit Detroit feed %@  •  %lu vehicles%@%@",
-        stamp, (unsigned long)self.vehicles.count, alertSuffix, cachedSuffix];
+    // The stamp renders as Detroit local time in plain language
+    // (NSDateFormatter pinned to America/Detroit, "Updated 5:00 PM
+    // EST"); saved (cached) data says so in words, per SDS-2.
+    NSMutableArray<NSString *> *parts = [NSMutableArray array];
+    [parts addObject:@"Live Transit Detroit feed"];
+    NSDate *date = [self dateFromFeedStamp:self.feedGeneratedAt];
+    if (date != nil) {
+        NSDateFormatter *display = [[NSDateFormatter alloc] init];
+        display.locale = [NSLocale localeWithLocaleIdentifier:@"en_US"];
+        display.timeZone = [NSTimeZone timeZoneWithName:@"America/Detroit"];
+        display.dateFormat = @"h:mm a zzz";
+        NSString *when = [display stringFromDate:date];
+        [parts addObject:self.showingCachedData
+            ? [NSString stringWithFormat:@"Showing saved data from %@", when]
+            : [NSString stringWithFormat:@"Updated %@", when]];
+    } else {
+        [parts addObject:@"Loading"];
+    }
+    [parts addObject:[self plural:self.vehicles.count
+                         singular:@"vehicle" plural:@"vehicles"]];
+    if (self.alertCount > 0) {
+        [parts addObject:[self plural:self.alertCount
+                             singular:@"service alert" plural:@"service alerts"]];
+    }
+    self.statusLabel.stringValue = [parts componentsJoinedByString:@"  •  "];
 }
 
 #pragma mark - NSTableViewDataSource / Delegate

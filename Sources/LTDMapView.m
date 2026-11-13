@@ -1,4 +1,14 @@
 // LTDMapView.m — see LTDMapView.h. ARC.
+//
+// Uplift (v0.1.0-rc4, SH-3 Coding under the standing delegation
+// authority of 2026-11-13; conformance listing files/06 rows 1 + 2):
+// SDS-1 surfaces — the map field is the `paper` token (#ffffff,
+// SDS-1 Rule 5 + token table; High Sierra targets use the light
+// ramp) and vehicle markers carry no hue (SDS-1 Rule 1): ink discs
+// with a paper ring, ink bearing ticks, and ink route labels —
+// legible by construction on paper. The light-ramp values are the
+// unshipped redesign line's (commit 05e7406): field paper, routes
+// mid-gray, core anchor darkened to remain legible on paper.
 #import "LTDMapView.h"
 #import <math.h>
 
@@ -111,8 +121,9 @@ static const double kLTDCoreLon = -83.0458;
     NSImage *image = [[NSImage alloc] initWithSize:size];
     [image lockFocus];
 
-    // Background.
-    [[NSColor colorWithCalibratedWhite:0.08 alpha:1.0] setFill];
+    // Background: the SDS-1 `paper` token (Rule 5 — light ramp on
+    // High Sierra targets). Was white 0.08, a black void.
+    [[NSColor colorWithCalibratedWhite:1.0 alpha:1.0] setFill];
     NSRectFill(NSMakeRect(0, 0, size.width, size.height));
 
     // Routes.
@@ -134,7 +145,9 @@ static const double kLTDCoreLon = -83.0458;
     // Detroit core anchor: a small ring + label at the core point, so
     // the regional framing keeps the city centre legible as its anchor.
     NSPoint core = [self pointForLat:kLTDCoreLat lon:kLTDCoreLon];
-    [[NSColor colorWithCalibratedWhite:0.85 alpha:0.9] setStroke];
+    // Anchor ring + label darkened from white 0.85 (calibrated for
+    // the old black field) to a legible gray on paper.
+    [[NSColor colorWithCalibratedWhite:0.35 alpha:0.9] setStroke];
     NSBezierPath *ring = [NSBezierPath bezierPathWithOvalInRect:
         NSMakeRect(core.x - 4.0, core.y - 4.0, 8.0, 8.0)];
     ring.lineWidth = 1.5;
@@ -142,7 +155,7 @@ static const double kLTDCoreLon = -83.0458;
     NSDictionary *coreAttrs = @{
         NSFontAttributeName: [NSFont systemFontOfSize:10.0],
         NSForegroundColorAttributeName:
-            [NSColor colorWithCalibratedWhite:0.85 alpha:0.9],
+            [NSColor colorWithCalibratedWhite:0.35 alpha:0.9],
     };
     [@"DETROIT" drawAtPoint:NSMakePoint(core.x + 7.0, core.y - 5.0)
              withAttributes:coreAttrs];
@@ -171,15 +184,19 @@ static const double kLTDCoreLon = -83.0458;
                             operation:NSCompositingOperationSourceOver
                              fraction:1.0];
     } else {
-        [[NSColor colorWithCalibratedWhite:0.08 alpha:1.0] setFill];
+        [[NSColor colorWithCalibratedWhite:1.0 alpha:1.0] setFill];
         NSRectFill(self.bounds);
     }
 
-    // Dynamic layer: vehicle markers only.
+    // Dynamic layer: vehicle markers only. SDS-1 Rule 1 — no hue:
+    // ink discs (the ramp's `ink` token) with a paper ring, so a
+    // marker stays legible over the gray route lines; the route
+    // label and bearing tick are ink on paper. (Was: a saturated
+    // hue fill with a white label — the listing's row 1.)
     NSFont *labelFont = [NSFont systemFontOfSize:9.0];
     NSDictionary *labelAttrs = @{
         NSFontAttributeName: labelFont,
-        NSForegroundColorAttributeName: [NSColor whiteColor],
+        NSForegroundColorAttributeName: [NSColor blackColor],
     };
     const double radius = 5.0;
 
@@ -189,23 +206,28 @@ static const double kLTDCoreLon = -83.0458;
 
         NSRect circle = NSMakeRect(c.x - radius, c.y - radius,
                                    radius * 2.0, radius * 2.0);
-        [[NSColor colorWithCalibratedRed:1.0 green:0.55 blue:0.1 alpha:1.0] setFill];
+        [[NSColor colorWithCalibratedWhite:0.0 alpha:1.0] setFill];
         [[NSBezierPath bezierPathWithOvalInRect:circle] fill];
-        [[NSColor blackColor] setStroke];
-        [[NSBezierPath bezierPathWithOvalInRect:circle] stroke];
+        [[NSColor whiteColor] setStroke];
+        NSBezierPath *ringPath = [NSBezierPath bezierPathWithOvalInRect:circle];
+        ringPath.lineWidth = 1.5;
+        [ringPath stroke];
 
         // Bearing tick: 0 deg = north = up (smaller y in flipped coords).
         // Drawn ONLY when the feed actually sent a bearing — a null
-        // bearing must not become a fabricated north heading.
+        // bearing must not become a fabricated north heading. Starts
+        // at the disc's edge so the ink tick reads on paper.
         if (v.hasBearing) {
             double rad = v.bearing * M_PI / 180.0;
+            NSPoint edge = NSMakePoint(c.x + sin(rad) * radius,
+                                       c.y - cos(rad) * radius);
             NSPoint tip = NSMakePoint(c.x + sin(rad) * (radius + 5.0),
                                       c.y - cos(rad) * (radius + 5.0));
             NSBezierPath *tick = [NSBezierPath bezierPath];
             tick.lineWidth = 1.5;
-            [tick moveToPoint:c];
+            [tick moveToPoint:edge];
             [tick lineToPoint:tip];
-            [[NSColor whiteColor] setStroke];
+            [[NSColor blackColor] setStroke];
             [tick stroke];
         }
 
